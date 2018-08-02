@@ -1,6 +1,5 @@
-def file_to_lines(filename):
-    with open(filename) as f:
-        content = f.readlines()
+def str_to_lines(f):
+    content = f.split('\n')
     content = [x.strip() for x in content]
     return content
 
@@ -21,10 +20,9 @@ def lines_to_dict(content):
 
     for line in content:
         companyname = line[:fieldpos]
-        print line[fieldpos:]
         fields = line[fieldpos:].split(" ")
         fields = [x.strip() for x in fields if x != '']
-        if fields[0] == 'D':
+        if fields and fields[0] == 'D':
             obj = {
                 'company': companyname.strip(),
                 'form_type': fields[0],
@@ -36,10 +34,15 @@ def lines_to_dict(content):
     return results
 
 
+def read_file(f):
+    content = str_to_lines(f)
+    return lines_to_dict(content)
+
+
 def main():
     import sys
     try:
-        lines = file_to_lines(sys.argv[1])
+        lines = str_to_lines(sys.argv[1])
         data = lines_to_dict(lines)
         for item in data:
             print item['file_name']

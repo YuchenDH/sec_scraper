@@ -1,10 +1,12 @@
+VALID_FORMS = ['D', 'D/A']
+
 def str_to_lines(f):
     content = f.split('\n')
     content = [x.strip() for x in content]
     return content
 
 
-def lines_to_dict(content):
+def lines_to_dict(content, valid_forms):
     fieldpos = None
     stoppoint = None
     results = []
@@ -22,7 +24,7 @@ def lines_to_dict(content):
         companyname = line[:fieldpos]
         fields = line[fieldpos:].split(" ")
         fields = [x.strip() for x in fields if x != '']
-        if fields and fields[0] == 'D':
+        if fields and fields[0] in valid_forms:
             obj = {
                 'company': companyname.strip(),
                 'form_type': fields[0],
@@ -36,7 +38,7 @@ def lines_to_dict(content):
 
 def read_file(f):
     content = str_to_lines(f)
-    return lines_to_dict(content)
+    return lines_to_dict(content, VALID_FORMS)
 
 
 def main():

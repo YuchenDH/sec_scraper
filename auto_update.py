@@ -1,19 +1,41 @@
 import idx_converter
 import datetime
+import urllib2
 import xml.etree.ElementTree as ET
 from collections import defaultdict
 import json
+from _printer import (print_dict, print_list)
 
 
 URL_BASE = 'https://www.sec.gov/Archives/'
 
 
-def get_idx_url(dt=datetime.datetime.now()):
-    url = URL_BASE + 'edgar/daily-index/' + str(dt.year) +'/QTR' + str(dt.month/3 + 1) + '/company.' + str(dt.year) + '%02d' % (dt.month) + '%02d' % (dt.day - 1) + '.idx'
-    return url
+def get_idx_url(startingdt=None, endingdt=None):
+    # returns a list of sub url for company idx requested
+    # No datetime specified: idx for yesterday
+    # 1 datetime specified: idx for specified date
+    # 2 datetime specified: idx inside the range (implicitly requires endingdate > startigndate)
+    urls = []
+    if startingdt is None:
+        dt = datetime.datetime.now() - datetime.timedelta(days=1)
+        url = URL_BASE + 'edgar/daily-index/' + str(dt.year) +'/QTR' + str(dt.month/3 + 1) + '/company.' + str(dt.year) + '%02d' % (dt.month) + '%02d' % (dt.day) + '.idx'
+        urls.append(url)
+    elif endingdt is None:
+        dt = startingdt
+        url = URL_BASE + 'edgar/daily-index/' + str(dt.year) +'/QTR' + str(dt.month/3 + 1) + '/company.' + str(dt.year) + '%02d' % (dt.month) + '%02d' % (dt.day) + '.idx'
+        urls.append(url)
+    else:
+        if endingdt < startingdt:
+            return []
+        date_list = [endingdt - datetime.timedelta(days=x) for x in xrange(0, (endingdt - startingdt).days)]
+        for dt in date_list:
+            url = URL_BASE + 'edgar/daily-index/' + str(dt.year) +'/QTR' + str(dt.month/3 + 1) + '/company.' + str(dt.year) + '%02d' % (dt.month) + '%02d' % (dt.day) + '.idx'
+            urls.append(url)
+    return urls
 
 
 def etree_to_dict(t):
+    # turns a xml etree to a dict object
     d = {t.tag: {} if t.attrib else None}
     children = list(t)
     if children:
@@ -35,67 +57,37 @@ def etree_to_dict(t):
             d[t.tag] = text
     return d
 
-
-def print_dict(d, indent):
-    if not isinstance(d, dict):
-        print d
-    print '{'
-    for k, v in d.items():
-        for i in xrange(indent+1):
-            print ' ',
-        print k + ':',
-        if isinstance(v, dict):
-            print_dict(v, indent+1)
-        elif isinstance(v, list):
-            print_list(v, indent+1)
-        else:
-            print repr(v) + ','
-    for i in xrange(indent):
-        print ' ',
-    print '}'
-
-
-def print_list(l, indent):
-    if not isinstance(l, list):
-        print l
-    print '['
-    for v in l:
-        for i in xrange(indent+1):
-            print ' ',
-        if isinstance(v, dict):
-            print_dict(v, indent+1)
-        elif isinstance(v, list):
-            print_list(v, indent+1)
-        else:
-            print  repr(v) + ','
-    for i in xrange(indent):
-        print ' ',
-    print ']'
-
     
 def update():
+    # returns a list of dict for every form D submitted to SEC yesterday
+    
     # Download idx file
-    import urllib2
-    response = urllib2.urlopen(get_idx_url())
-    f = response.read()
+    for url in get_idx_url():
+        response = urllib2.urlopen(url)
+        f = response.read()
 
-    # construct the file url list
-    form_list = idx_converter.read_file(f)
+        # construct the file url list
+        form_list = idx_converter.read_file(f)
+        result_list = []
+    
+        #iterate through every file
+        for item in form_list:
+            url = URL_BASE + item['file_name']
+            formfile = urllib2.urlopen(url).read()
+            # concat xml part
+            formfile = formfile.split('</XML>')[0].split('<XML>\n')[1]
+            root = ET.fromstring(formfile)
+            d = (etree_to_dict(root))
+            result_list.append({
+                'header': item,
+                'data': d
+            })
 
-    #iterate through every file
-    for item in form_list:
-        url = URL_BASE + item['file_name']
-        print 'Accessing ' + url
-        formfile = urllib2.urlopen(url).read()
-        # concat xml part
-        formfile = formfile.split('</XML>')[0].split('<XML>\n')[1]
-        root = ET.fromstring(formfile)
-        d = (etree_to_dict(root))
-        print_dict(d, 0)
-        
+    return result_list
 
 def main():
-    update()
+    for item in update():
+        print_dict(item, 0)
 
 
 if __name__ == '__main__':

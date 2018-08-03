@@ -58,17 +58,24 @@ def etree_to_dict(t):
     return d
 
     
-def update():
-    # returns a list of dict for every form D submitted to SEC yesterday
+def get_data(start=None, end=None):
+    # returns a list of dict for every form D submitted to SEC in the date range
+    # if no date supplied, return data for yesterday
+    # if only one date supplied, return data for that date
+
+    result_list = []
     
     # Download idx file
-    for url in get_idx_url():
-        response = urllib2.urlopen(url)
-        f = response.read()
+    for url in get_idx_url(start, end):
+        try:
+            response = urllib2.urlopen(url)
+            f = response.read()
+        except:
+            print 'exception when accessing ' + url
+            return result_list
 
         # construct the file url list
         form_list = idx_converter.read_file(f)
-        result_list = []
     
         #iterate through every file
         for item in form_list:
@@ -86,7 +93,7 @@ def update():
     return result_list
 
 def main():
-    for item in update():
+    for item in get_data():
         print_dict(item, 0)
 
 

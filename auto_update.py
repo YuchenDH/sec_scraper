@@ -23,18 +23,18 @@ def get_idx_url(startingdt=None, endingdt=None):
     urls = []
     if startingdt is None:
         dt = datetime.datetime.now() - datetime.timedelta(days=1)
-        url = URL_BASE + 'edgar/daily-index/' + str(dt.year) +'/QTR' + str(dt.month//3 + 1) + '/company.' + str(dt.year) + '%02d' % (dt.month) + '%02d' % (dt.day) + '.idx'
+        url = URL_BASE + 'edgar/daily-index/' + str(dt.year) +'/QTR' + str((dt.month-1)//3 + 1) + '/company.' + str(dt.year) + '%02d' % (dt.month) + '%02d' % (dt.day) + '.idx'
         urls.append(url)
     elif endingdt is None:
         dt = startingdt
-        url = URL_BASE + 'edgar/daily-index/' + str(dt.year) +'/QTR' + str(dt.month//3 + 1) + '/company.' + str(dt.year) + '%02d' % (dt.month) + '%02d' % (dt.day) + '.idx'
+        url = URL_BASE + 'edgar/daily-index/' + str(dt.year) +'/QTR' + str((dt.month-1)//3 + 1) + '/company.' + str(dt.year) + '%02d' % (dt.month) + '%02d' % (dt.day) + '.idx'
         urls.append(url)
     else:
         if endingdt < startingdt:
             return []
         date_list = [endingdt - datetime.timedelta(days=x) for x in range(0, (endingdt - startingdt).days)]
         for dt in date_list:
-            url = URL_BASE + 'edgar/daily-index/' + str(dt.year) +'/QTR' + str(dt.month//3 + 1) + '/company.' + str(dt.year) + '%02d' % (dt.month) + '%02d' % (dt.day) + '.idx'
+            url = URL_BASE + 'edgar/daily-index/' + str(dt.year) +'/QTR' + str((dt.month-1)//3 + 1) + '/company.' + str(dt.year) + '%02d' % (dt.month) + '%02d' % (dt.day) + '.idx'
             urls.append(url)
     return urls
 

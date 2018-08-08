@@ -1,6 +1,7 @@
 import idx_converter
 import datetime
-import urllib2
+import urllib.request
+import urllib.error
 import xml.etree.ElementTree as ET
 from collections import defaultdict
 import json
@@ -8,6 +9,10 @@ from _printer import (print_dict, print_list)
 
 
 URL_BASE = 'https://www.sec.gov/Archives/'
+
+DESIRED_INDUSTRY_GROUPS = ['Other', 'Computers', 'Telecommunications', 'Other Technology', 'Biotechnology', 'Other Health Care', 'Other Real Estate']
+DESIRED_ENTITY_TYPES = ['Limited Liability Company', 'Corporation']
+DESIRED_SECURITY_TYPES = ['isEquityType', 'isDebtType']
 
 
 def get_idx_url(startingdt=None, endingdt=None):
@@ -18,18 +23,18 @@ def get_idx_url(startingdt=None, endingdt=None):
     urls = []
     if startingdt is None:
         dt = datetime.datetime.now() - datetime.timedelta(days=1)
-        url = URL_BASE + 'edgar/daily-index/' + str(dt.year) +'/QTR' + str(dt.month/3 + 1) + '/company.' + str(dt.year) + '%02d' % (dt.month) + '%02d' % (dt.day) + '.idx'
+        url = URL_BASE + 'edgar/daily-index/' + str(dt.year) +'/QTR' + str(dt.month//3 + 1) + '/company.' + str(dt.year) + '%02d' % (dt.month) + '%02d' % (dt.day) + '.idx'
         urls.append(url)
     elif endingdt is None:
         dt = startingdt
-        url = URL_BASE + 'edgar/daily-index/' + str(dt.year) +'/QTR' + str(dt.month/3 + 1) + '/company.' + str(dt.year) + '%02d' % (dt.month) + '%02d' % (dt.day) + '.idx'
+        url = URL_BASE + 'edgar/daily-index/' + str(dt.year) +'/QTR' + str(dt.month//3 + 1) + '/company.' + str(dt.year) + '%02d' % (dt.month) + '%02d' % (dt.day) + '.idx'
         urls.append(url)
     else:
         if endingdt < startingdt:
             return []
-        date_list = [endingdt - datetime.timedelta(days=x) for x in xrange(0, (endingdt - startingdt).days)]
+        date_list = [endingdt - datetime.timedelta(days=x) for x in range(0, (endingdt - startingdt).days)]
         for dt in date_list:
-            url = URL_BASE + 'edgar/daily-index/' + str(dt.year) +'/QTR' + str(dt.month/3 + 1) + '/company.' + str(dt.year) + '%02d' % (dt.month) + '%02d' % (dt.day) + '.idx'
+            url = URL_BASE + 'edgar/daily-index/' + str(dt.year) +'/QTR' + str(dt.month//3 + 1) + '/company.' + str(dt.year) + '%02d' % (dt.month) + '%02d' % (dt.day) + '.idx'
             urls.append(url)
     return urls
 
@@ -68,28 +73,53 @@ def get_data(start=None, end=None):
     # Download idx file
     for url in get_idx_url(start, end):
         try:
-            response = urllib2.urlopen(url)
+            response = urllib.request.urlopen(url)
             f = response.read()
         except:
-            print 'exception when accessing ' + url
-            return result_list
+            print('exception when accessing ' + url)
+            continue
 
         # construct the file url list
         form_list = idx_converter.read_file(f)
-    
-        #iterate through every file
-        for item in form_list:
-            url = URL_BASE + item['file_name']
-            formfile = urllib2.urlopen(url).read()
-            # concat xml part
-            formfile = formfile.split('</XML>')[0].split('<XML>\n')[1]
-            root = ET.fromstring(formfile)
-            d = (etree_to_dict(root))
-            result_list.append({
-                'header': item,
-                'data': d
-            })
 
+        #iterate through every file
+        for header in form_list:
+            url = URL_BASE + header['file_name']
+            print('Accessing ', url)
+            try:
+                formfile = urllib.request.urlopen(url).read()
+                # concat xml part
+                formfile = formfile.decode('utf-8').split('</XML>')[0].split('<XML>\n')[1]
+                root = ET.fromstring(formfile)
+                item = (etree_to_dict(root))
+                if not item['edgarSubmission']['testOrLive'] == 'LIVE':
+                    continue
+                if not item['edgarSubmission']['offeringData']['industryGroup']['industryGroupType'] in DESIRED_INDUSTRY_GROUPS:
+                    # print 'removing for industryGroup'
+                    continue
+                if not item['edgarSubmission']['primaryIssuer']['entityType'] in DESIRED_ENTITY_TYPES:
+                    # print 'removing for entityType'
+                    continue
+                if set(item['edgarSubmission']['offeringData']['typesOfSecuritiesOffered'].keys()).isdisjoint(DESIRED_SECURITY_TYPES):
+                    # print 'removing for security_type'
+                    continue
+
+                if isinstance(item['edgarSubmission']['relatedPersonsList']['relatedPersonInfo'], list):
+                    for personInfo in item['edgarSubmission']['relatedPersonsList']['relatedPersonInfo']:
+                        del personInfo['relatedPersonAddress']
+                elif isinstance(item['edgarSubmission']['relatedPersonsList']['relatedPersonInfo'], dict):
+                    del item['edgarSubmission']['relatedPersonsList']['relatedPersonInfo']['relatedPersonAddress']
+                    item['edgarSubmission']['relatedPersonsList']['relatedPersonInfo'] = [item['edgarSubmission']['relatedPersonsList']['relatedPersonInfo']]
+                else:
+                    continue
+
+                result_list.append({
+                    'header': header,
+                    'data': item
+                })
+            except:
+                print('exception when accessing ' + url)
+                continue
     return result_list
 
 def main():

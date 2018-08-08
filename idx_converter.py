@@ -1,7 +1,7 @@
 VALID_FORMS = ['D', 'D/A']
 
 def str_to_lines(f):
-    content = f.split('\n')
+    content = f.split(b'\n')
     content = [x.strip() for x in content]
     return content
 
@@ -11,8 +11,8 @@ def lines_to_dict(content, valid_forms):
     stoppoint = None
     results = []
     for idx, line in enumerate(content):
-        if line[0:7] == 'Company':
-            fieldpos = line.find('Fo')
+        if line[0:7] == b'Company':
+            fieldpos = line.find(b'Fo')
             if not fieldpos:
                 raise ValueError('No column name found')
             stoppoint = idx
@@ -21,8 +21,8 @@ def lines_to_dict(content, valid_forms):
     content = content[stoppoint+3:]
 
     for line in content:
-        companyname = line[:fieldpos]
-        fields = line[fieldpos:].split(" ")
+        companyname = line[:fieldpos].decode('utf-8')
+        fields = line[fieldpos:].decode('utf-8').split(" ")
         fields = [x.strip() for x in fields if x != '']
         if fields and fields[0] in valid_forms:
             obj = {
@@ -47,7 +47,7 @@ def main():
         lines = str_to_lines(sys.argv[1])
         data = lines_to_dict(lines)
         for item in data:
-            print item['file_name']
+            print(item['file_name'])
         
     except:
         raise

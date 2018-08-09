@@ -1,6 +1,13 @@
 VALID_FORMS = ['D', 'D/A']
 
 def str_to_lines(f):
+    try:
+        content = content.decode('utf-8')
+    except UnicodeDecodeError:
+        content = content.decode('latin-1')
+    except:
+        raise
+    
     content = f.split(b'\n')
     content = [x.strip() for x in content]
     return content

@@ -80,8 +80,12 @@ def get_data(start=None, end=None):
             continue
 
         # construct the file url list
-        form_list = idx_converter.read_file(f)
-
+        try:
+            form_list = idx_converter.read_file(f)
+        except:
+            print('error when processing ' + url)
+            continue
+        
         #iterate through every file
         for header in form_list:
             url = URL_BASE + header['file_name']
@@ -89,7 +93,12 @@ def get_data(start=None, end=None):
             try:
                 formfile = urllib.request.urlopen(url).read()
                 # concat xml part
-                formfile = formfile.decode('utf-8').split('</XML>')[0].split('<XML>\n')[1]
+                try:
+                    formfile = formfile.decode('utf-8').split('</XML>')[0].split('<XML>\n')[1]
+                except UnicodeDecodeError:
+                    formfile = formfile.decode('latin-1').split('</XML>')[0].split('<XML>\n')[1]
+                except:
+                    print('decode failure when accessing ' + url)
                 root = ET.fromstring(formfile)
                 item = (etree_to_dict(root))
                 if not item['edgarSubmission']['testOrLive'] == 'LIVE':

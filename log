@@ -1,0 +1,1 @@
+[5]   Exit 1                  python test.py 9 > /dev/null

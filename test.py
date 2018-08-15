@@ -3,35 +3,11 @@ from _printer import print_list, print_dict
 import datetime
 import pandas as pd
 from dateutil.relativedelta import relativedelta
+import sys
 
 
 def main(start=None, end=None):
-    rawdata = get_data(start, end)
-    data = []
-    for item in rawdata:
-        if not item['data']['edgarSubmission']['testOrLive'] == 'LIVE':
-            continue
-        if not item['data']['edgarSubmission']['offeringData']['industryGroup']['industryGroupType'] in DESIRED_INDUSTRY_GROUPS:
-            # print 'removing for industryGroup'
-            continue
-        if not item['data']['edgarSubmission']['primaryIssuer']['entityType'] in DESIRED_ENTITY_TYPES:
-            # print 'removing for entityType'
-            continue
-        if set(item['data']['edgarSubmission']['offeringData']['typesOfSecuritiesOffered'].keys()).isdisjoint(DESIRED_SECURITY_TYPES):
-            # print 'removing for security_type'
-            continue
-
-        if isinstance(item['data']['edgarSubmission']['relatedPersonsList']['relatedPersonInfo'], list):
-            for personInfo in item['data']['edgarSubmission']['relatedPersonsList']['relatedPersonInfo']:
-                del personInfo['relatedPersonAddress']
-        elif isinstance(item['data']['edgarSubmission']['relatedPersonsList']['relatedPersonInfo'], dict):
-            del item['data']['edgarSubmission']['relatedPersonsList']['relatedPersonInfo']['relatedPersonAddress']
-            item['data']['edgarSubmission']['relatedPersonsList']['relatedPersonInfo'] = [item['data']['edgarSubmission']['relatedPersonsList']['relatedPersonInfo']]
-        else:
-            continue
-
-        data.append(item)
-
+    data = get_data(start, end)
     tabledata = []
     for row in data:
         tablerow = {}
@@ -61,7 +37,11 @@ def main(start=None, end=None):
         tablerow['Total Offering Amount'] = row['data']['edgarSubmission']['offeringData']['offeringSalesAmounts']['totalOfferingAmount']
         tablerow['Total Amount Sold'] = row['data']['edgarSubmission']['offeringData']['offeringSalesAmounts']['totalAmountSold']
         tablerow['Total Remaining'] = row['data']['edgarSubmission']['offeringData']['offeringSalesAmounts']['totalRemaining']
-        tablerow['Clarification of Sales Amounts'] = row['data']['edgarSubmission']['offeringData']['offeringSalesAmounts']['clarificationOfResponse']
+        try:
+            tablerow['Clarification of Sales Amounts'] = row['data']['edgarSubmission']['offeringData']['offeringSalesAmounts']['clarificationOfResponse']
+        except KeyError:
+            tablerow['Clarification of Sales Amounts'] = None
+            
         tablerow['Has Non-Accredited Investors'] = row['data']['edgarSubmission']['offeringData']['investors']['hasNonAccreditedInvestors']
         tablerow['Total Number of Inversters Already Invested'] = row['data']['edgarSubmission']['offeringData']['investors']['totalNumberAlreadyInvested']
         tabledata.append(tablerow)
@@ -71,6 +51,10 @@ def main(start=None, end=None):
     return table
 
 if __name__ == '__main__':
-    end = datetime.datetime.now() - datetime.timedelta(days=1)
-    start = end - relativedelta(years=20)
-    main(start, end)
+    end = datetime.datetime.now() - datetime.timedelta(days=1) - relativedelta(years=int(sys.argv[1]))
+    start = end - relativedelta(years=1)
+    table = main(start, end)
+    filename = 'data' +  datetime.datetime.strftime(start, '%Y-%m-%d') + '-' + datetime.datetime.strftime(end, '%Y-%m-%d')
+    with open(filename, 'w+') as f:
+        table.to_csv(f, sep='\t', encoding='utf-8')
+

@@ -99,6 +99,8 @@ def get_data(start=None, end=None):
                     formfile = formfile.decode('latin-1').split('</XML>')[0].split('<XML>\n')[1]
                 except:
                     print('decode failure when accessing ' + url)
+                    continue
+                
                 root = ET.fromstring(formfile)
                 item = (etree_to_dict(root))
                 if not item['edgarSubmission']['testOrLive'] == 'LIVE':
